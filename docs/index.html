@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#2A0911" />
+<title>PageRank · Structured Parallelism Visualizer</title>
+<style>
+  /* ============================================================
+     VINTAGE PALETTE  ·  burgundy · royal gold · cream
+     ============================================================ */
+  :root {
+    --bg:           #1F0810;
+    --bg-2:         #2A0911;
+    --bg-soft:      #34101A;
+    --surface:      #3D0F1C;
+    --surface-2:    #4A1525;
+    --surface-3:    #5A1F30;
+    --border:       #6E2A3D;
+    --border-soft:  #4A1525;
+
+    --ink:          #F5EDE0;     /* soft cream */
+    --ink-soft:     #DCC8B3;     /* warm tan */
+    --muted:        #A88C7A;
+    --muted-2:      #7A6055;
+
+    /* Royal vintage gold — burnished, not neon */
+    --gold:         #C9A55A;
+    --gold-soft:    #E0C880;
+    --gold-deep:    #8E6D2F;
+
+    /* Burgundy + rose family — the "warm" lane */
+    --rose:         #C58591;     /* dusty rose */
+    --rose-soft:    #DBA0AB;
+    --rose-deep:    #8B3A4E;
+    --blush:        #E5B7BA;
+
+    /* Mauve / wine pink accent */
+    --mauve:        #A05060;
+    --wine:         #6E1F38;
+    --champagne:    #E8D5A8;
+
+    --font-sans:  -apple-system, BlinkMacSystemFont, "Segoe UI",
+                  system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-serif: "Hoefler Text", "Big Caslon", Garamond, "Iowan Old Style",
+                  Georgia, Palatino, serif;
+    --font-mono:  ui-monospace, "SF Mono", Menlo, Consolas,
+                  "Liberation Mono", monospace;
+
+    --radius:    14px;
+    --radius-sm: 8px;
+    --shadow:    0 4px 24px rgba(0,0,0,0.5),
+                 0 1px 2px rgba(0,0,0,0.7),
+                 inset 0 1px 0 rgba(245,237,224,0.04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(900px 540px at -10% -20%, rgba(201,165,90,0.10), transparent 60%),
+      radial-gradient(900px 540px at 110% 10%, rgba(197,133,145,0.10), transparent 60%),
+      radial-gradient(800px 540px at 50% 110%, rgba(139,58,78,0.10), transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.55;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+  header {
+    padding: 26px 32px 8px;
+    max-width: 1480px; margin: 0 auto;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 18px;
+  }
+  .logo {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: conic-gradient(from 180deg,
+                  var(--gold), var(--rose), var(--gold-soft), var(--gold));
+    display: grid; place-items: center;
+    font-family: var(--font-serif); font-weight: 700; font-size: 22px;
+    color: var(--bg-2);
+    box-shadow: 0 0 28px rgba(201,165,90,0.4),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+    position: relative; flex-shrink: 0;
+  }
+  .logo::after {
+    content: ""; position: absolute; inset: 3px;
+    border-radius: 50%; background: var(--bg-2);
+    z-index: 0;
+  }
+  .logo span { position: relative; z-index: 1; color: var(--gold); font-style: italic; }
+
+  .brand-text .title {
+    font-family: var(--font-serif);
+    font-size: 22px; font-weight: 700;
+    letter-spacing: 0.3px;
+    color: var(--ink);
+  }
+  .brand-text .tag {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 2.4px;
+    color: var(--muted); margin-top: 2px;
+  }
+  .brand-text .tag b { color: var(--gold); font-weight: 600; }
+
+  h1.hero {
+    font-family: var(--font-serif);
+    font-size: 38px; font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 8px;
+    background: linear-gradient(135deg,
+                  var(--ink) 0%, var(--gold-soft) 50%, var(--rose-soft) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+  }
+  h1.hero em { font-style: italic; -webkit-text-fill-color: var(--gold); }
+  .lede {
+    color: var(--ink-soft); font-size: 14.5px; max-width: 780px;
+    line-height: 1.65;
+  }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  /* ============================================================
+     CONTROL BAR
+     ============================================================ */
+  .controls {
+    max-width: 1480px; margin: 22px auto 0;
+    padding: 0 32px;
+    display: grid;
+    grid-template-columns: auto auto 1fr auto auto;
+    gap: 12px; align-items: stretch;
+  }
+  .ctrl-card {
+    background: linear-gradient(180deg, var(--surface), var(--surface-2));
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    box-shadow: var(--shadow);
+    display: flex; align-items: center; gap: 10px;
+    min-height: 56px;
+  }
+  .btn {
+    border: none; cursor: pointer;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.4px;
+    transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 7px;
+    min-height: 40px;
+    white-space: nowrap;
+  }
+  .btn-play {
+    background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+    color: var(--bg-2);
+    box-shadow: 0 4px 14px rgba(201,165,90,0.32),
+                inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .btn-play:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(201,165,90,0.45),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .btn-ghost {
+    background: rgba(245,237,224,0.04);
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover {
+    background: rgba(245,237,224,0.08);
+    color: var(--ink);
+    border-color: var(--gold);
+  }
+  .btn-ghost.compact { padding: 8px 12px; font-size: 12px; min-height: 36px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .slider-wrap {
+    display: flex; align-items: center; gap: 12px;
+    flex: 1; max-width: 320px;
+  }
+  .slider-wrap label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--muted); font-weight: 600;
+    white-space: nowrap;
+  }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    flex: 1; height: 4px;
+    background: var(--border);
+    border-radius: 2px; outline: none;
+    margin: 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--gold); cursor: pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 8px rgba(201,165,90,0.5);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--gold); cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+  .iter-display {
+    font-family: var(--font-mono); font-size: 13px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .iter-display b {
+    color: var(--gold); font-weight: 700;
+    font-family: var(--font-mono); font-size: 18px;
+  }
+
+  /* ============================================================
+     COMPARISON LANES
+     ============================================================ */
+  main {
+    max-width: 1480px;
+    margin: 22px auto 0;
+    padding: 0 32px 24px;
+  }
+  .lanes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .lane {
+    background: linear-gradient(180deg, var(--surface), var(--surface-2));
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 20px 22px 22px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .lane::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .lane.seq::before {
+    background: linear-gradient(90deg, var(--rose), var(--rose-deep));
+  }
+  .lane.par::before {
+    background: linear-gradient(90deg, var(--gold), var(--gold-soft));
+  }
+
+  .lane-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 10px; flex-wrap: wrap;
+  }
+  .lane-title {
+    font-family: var(--font-serif);
+    font-size: 18px; font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--ink);
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 100px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1.3px;
+  }
+  .pill.seq {
+    background: rgba(197,133,145,0.14); color: var(--rose-soft);
+    border: 1px solid rgba(197,133,145,0.35);
+  }
+  .pill.par {
+    background: rgba(201,165,90,0.14); color: var(--gold-soft);
+    border: 1px solid rgba(201,165,90,0.35);
+  }
+  .pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  .pill.live .dot {
+    animation: pulseDot 1.2s ease-in-out infinite;
+  }
+  @keyframes pulseDot {
+    0%,100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+    50%     { box-shadow: 0 0 0 5px transparent; opacity: 0.5; }
+  }
+  .timer {
+    font-family: var(--font-mono); font-size: 22px; font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .timer .unit {
+    font-size: 12px; font-weight: 400; color: var(--muted);
+    margin-left: 3px;
+  }
+
+  /* The graph view */
+  .graph-wrap {
+    position: relative;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    padding: 8px;
+    height: 380px;
+  }
+  svg.graph {
+    width: 100%; height: 100%;
+    display: block;
+  }
+  .node-circle {
+    fill: var(--surface-3);
+    stroke: var(--border);
+    stroke-width: 1.5;
+    transition: fill 0.2s, stroke 0.2s, r 0.4s;
+  }
+  .node-glow {
+    fill: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .node-label {
+    fill: var(--ink-soft);
+    font-size: 9px;
+    font-weight: 600;
+    text-anchor: middle;
+    pointer-events: none;
+    font-family: var(--font-sans);
+  }
+  .node-rank {
+    fill: var(--ink);
+    font-size: 8px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+  .edge {
+    stroke: rgba(220,200,180,0.16);
+    stroke-width: 1;
+    fill: none;
+    transition: stroke 0.2s, stroke-width 0.2s;
+  }
+
+  /* Active node colors per lane */
+  .lane.seq .node.active .node-circle {
+    fill: var(--rose); stroke: var(--rose-soft);
+  }
+  .lane.seq .node.active .node-glow {
+    opacity: 0.45;
+    fill: var(--rose);
+    filter: blur(8px);
+  }
+  /* Parallel: 4 workers — gold, deep rose, champagne, mauve */
+  .lane.par .node.active-0 .node-circle { fill: var(--gold);      stroke: var(--gold-soft); }
+  .lane.par .node.active-1 .node-circle { fill: var(--rose-deep); stroke: var(--rose); }
+  .lane.par .node.active-2 .node-circle { fill: var(--champagne); stroke: var(--gold); }
+  .lane.par .node.active-3 .node-circle { fill: var(--mauve);     stroke: var(--rose-soft); }
+  .lane.par .node.active-0 .node-glow,
+  .lane.par .node.active-1 .node-glow,
+  .lane.par .node.active-2 .node-glow,
+  .lane.par .node.active-3 .node-glow {
+    opacity: 0.45; filter: blur(8px);
+  }
+  .lane.par .node.active-0 .node-glow { fill: var(--gold); }
+  .lane.par .node.active-1 .node-glow { fill: var(--rose-deep); }
+  .lane.par .node.active-2 .node-glow { fill: var(--champagne); }
+  .lane.par .node.active-3 .node-glow { fill: var(--mauve); }
+
+  /* Worker chips */
+  .workers {
+    margin-top: 14px;
+    display: grid;
+    gap: 6px;
+  }
+  .lane.seq .workers { grid-template-columns: 1fr; }
+  .lane.par .workers { grid-template-columns: 1fr 1fr; }
+  .worker {
+    display: grid;
+    grid-template-columns: 78px 1fr 60px;
+    gap: 10px; align-items: center;
+    padding: 7px 10px;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .worker.busy { background: rgba(201,165,90,0.07); }
+  .worker .name {
+    font-weight: 700; letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 6px;
+    color: var(--ink);
+  }
+  .worker .name .swatch {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+    flex-shrink: 0;
+  }
+  .worker .doing {
+    font-family: var(--font-mono);
+    color: var(--ink-soft);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .worker .count {
+    text-align: right;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+  }
+  .lane.par .worker.w0 .swatch { background: var(--gold); }
+  .lane.par .worker.w1 .swatch { background: var(--rose-deep); }
+  .lane.par .worker.w2 .swatch { background: var(--champagne); }
+  .lane.par .worker.w3 .swatch { background: var(--mauve); }
+  .lane.seq .worker.w0 .swatch { background: var(--rose); }
+
+  /* Progress bar (per-iteration) */
+  .progress-block {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-top: 12px;
+  }
+  .progress-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--muted);
+  }
+  .progress-label b { color: var(--ink); }
+  .progress-track {
+    height: 6px;
+    background: rgba(0,0,0,0.42);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%;
+    border-radius: 3px;
+    transition: width 0.18s linear;
+  }
+  .lane.seq .progress-fill {
+    background: linear-gradient(90deg, var(--rose), var(--rose-deep));
+  }
+  .lane.par .progress-fill {
+    background: linear-gradient(90deg, var(--gold), var(--gold-soft));
+  }
+
+  /* ============================================================
+     SPEEDUP HERO + BAR CHART
+     ============================================================ */
+  .results {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 18px;
+  }
+
+  .speedup-card {
+    background: linear-gradient(135deg, var(--wine), var(--bg-2));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 26px;
+    box-shadow: var(--shadow);
+    position: relative; overflow: hidden;
+  }
+  .speedup-card::before {
+    content: ""; position: absolute;
+    top: -60%; right: -20%;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(201,165,90,0.20), transparent 60%);
+    pointer-events: none;
+  }
+  .speedup-card::after {
+    content: ""; position: absolute;
+    bottom: -50%; left: -20%;
+    width: 350px; height: 350px;
+    background: radial-gradient(circle, rgba(197,133,145,0.14), transparent 60%);
+    pointer-events: none;
+  }
+  .speedup-label {
+    position: relative;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 2.5px;
+    color: var(--gold-soft); font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .speedup-big {
+    position: relative;
+    font-family: var(--font-serif);
+    font-size: 86px; font-weight: 700;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--gold-soft), var(--rose-soft) 60%, var(--champagne));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -2px;
+  }
+  .speedup-big .x {
+    font-size: 52px; opacity: 0.85;
+    -webkit-text-fill-color: var(--gold-soft);
+    background: none;
+  }
+  .speedup-sub {
+    position: relative;
+    color: var(--ink-soft); font-size: 13px; margin-top: 12px;
+    line-height: 1.6;
+  }
+  .speedup-sub b { color: var(--ink); }
+  .speedup-vs {
+    position: relative;
+    display: flex; gap: 18px; margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(245,237,224,0.10);
+  }
+  .vs-cell { flex: 1; }
+  .vs-cell .vsLabel {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--muted); font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .vs-cell .vsValue {
+    font-family: var(--font-mono); font-size: 20px; font-weight: 700;
+  }
+  .vs-cell.seq .vsValue { color: var(--rose-soft); }
+  .vs-cell.par .vsValue { color: var(--gold-soft); }
+
+  /* Bar chart card */
+  .bars-card {
+    background: linear-gradient(180deg, var(--surface), var(--surface-2));
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+  }
+  .bars-card h3 {
+    margin: 0 0 4px;
+    font-family: var(--font-serif); font-size: 18px; font-weight: 700;
+    color: var(--ink);
+  }
+  .bars-card .sub {
+    color: var(--muted); font-size: 12px; margin-bottom: 14px;
+  }
+  .bars {
+    display: grid; gap: 10px;
+  }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 70px;
+    align-items: center; gap: 12px;
+  }
+  .bar-row .label {
+    font-size: 12px; font-weight: 600; color: var(--ink-soft);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bar-row .label .rank-num {
+    color: var(--muted); font-family: var(--font-mono);
+    font-size: 10px; margin-right: 6px;
+  }
+  .bar-track {
+    height: 14px; background: rgba(0,0,0,0.42);
+    border-radius: 7px; overflow: hidden;
+    border: 1px solid var(--border-soft);
+  }
+  .bar-fill {
+    height: 100%; border-radius: 6px;
+    background: linear-gradient(90deg, var(--gold), var(--rose-soft) 70%, var(--rose-deep));
+    transition: width 0.4s ease;
+    box-shadow: 0 0 8px rgba(201,165,90,0.3);
+  }
+  .bar-row .val {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink); text-align: right;
+    font-weight: 700;
+  }
+
+  /* ============================================================
+     EXPLAINER STRIP
+     ============================================================ */
+  .explainer-strip {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .ex-card {
+    background: linear-gradient(180deg, var(--surface), var(--surface-2));
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    border-left: 3px solid var(--gold);
+  }
+  .ex-card.rose { border-left-color: var(--rose); }
+  .ex-card.deep { border-left-color: var(--rose-deep); }
+  .ex-card h4 {
+    margin: 0 0 6px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.6px;
+    color: var(--gold-soft); font-weight: 700;
+  }
+  .ex-card.rose h4 { color: var(--rose-soft); }
+  .ex-card.deep h4 { color: var(--blush); }
+  .ex-card p {
+    margin: 0; font-size: 12.5px; color: var(--ink-soft);
+    line-height: 1.6;
+  }
+  .ex-card p b { color: var(--ink); font-weight: 600; }
+  .ex-card code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: rgba(201,165,90,0.12);
+    color: var(--gold-soft);
+    padding: 1px 5px; border-radius: 3px;
+  }
+
+  /* ============================================================
+     FOOTER
+     ============================================================ */
+  footer {
+    margin-top: 22px;
+    padding: 16px 0 24px;
+    border-top: 1px solid var(--border-soft);
+    text-align: center;
+    color: var(--muted-2);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+  footer b { color: var(--muted); }
+
+  /* ============================================================
+     RESPONSIVE  ·  tablet + phone
+     ============================================================ */
+
+  /* Tablets (under 1080px) — single column for lanes & results */
+  @media (max-width: 1080px) {
+    .lanes { grid-template-columns: 1fr; }
+    .results { grid-template-columns: 1fr; }
+  }
+
+  /* Smaller tablets / large phones (under 900px) */
+  @media (max-width: 900px) {
+    header { padding: 22px 22px 8px; }
+    .controls { padding: 0 22px; }
+    main { padding: 0 22px 24px; }
+    h1.hero { font-size: 32px; }
+    .lede { font-size: 14px; }
+
+    /* Controls: 2-column grid */
+    .controls {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .controls > :nth-child(1) { grid-column: 1 / -1; }
+    .controls > :nth-child(2) { grid-column: 1 / -1; }
+    .controls > :nth-child(3) { grid-column: 1; }
+    .controls > :nth-child(4) { grid-column: 2; }
+    .slider-wrap { max-width: none; }
+
+    .explainer-strip { grid-template-columns: 1fr; }
+  }
+
+  /* Phones (under 640px) */
+  @media (max-width: 640px) {
+    header { padding: 18px 16px 8px; }
+    .controls { padding: 0 16px; }
+    main { padding: 0 16px 18px; }
+    body { font-size: 13px; }
+
+    .brand { gap: 12px; margin-bottom: 16px; }
+    .logo { width: 40px; height: 40px; font-size: 18px; }
+    .logo::after { inset: 2.5px; }
+    .brand-text .title { font-size: 18px; }
+    .brand-text .tag { font-size: 9.5px; letter-spacing: 2px; }
+
+    h1.hero { font-size: 26px; line-height: 1.2; }
+    .lede { font-size: 13px; }
+
+    /* Controls collapse fully */
+    .controls { grid-template-columns: 1fr; gap: 8px; }
+    .controls > * { grid-column: 1 / -1 !important; }
+    .ctrl-card { padding: 11px 14px; min-height: 50px; }
+    .btn { padding: 9px 14px; font-size: 12.5px; }
+    .btn-ghost.compact { padding: 8px 11px; font-size: 11.5px; }
+    .iter-display { font-size: 12px; }
+    .iter-display b { font-size: 16px; }
+
+    .lane { padding: 16px 16px 18px; }
+    .lane-head { gap: 8px; }
+    .lane-title { font-size: 16px; }
+    .timer { font-size: 19px; }
+    .graph-wrap { height: 280px; padding: 6px; }
+    .node-label { font-size: 8px; }
+    .node-rank { font-size: 7px; }
+
+    .lane.par .workers { grid-template-columns: 1fr; }
+    .worker { grid-template-columns: 90px 1fr 50px; padding: 6px 9px; font-size: 10.5px; }
+    .worker .count { font-size: 9.5px; }
+
+    .speedup-card { padding: 20px 20px; }
+    .speedup-big { font-size: 64px; letter-spacing: -1.5px; }
+    .speedup-big .x { font-size: 40px; }
+    .speedup-sub { font-size: 12.5px; }
+    .speedup-vs { gap: 14px; }
+    .vs-cell .vsValue { font-size: 17px; }
+
+    .bars-card { padding: 16px 18px; }
+    .bars-card h3 { font-size: 16px; }
+    .bar-row { grid-template-columns: 90px 1fr 60px; gap: 8px; }
+    .bar-row .label { font-size: 11px; }
+    .bar-row .val { font-size: 10.5px; }
+
+    .ex-card { padding: 13px 15px; }
+    .ex-card p { font-size: 12px; }
+  }
+
+  /* Extra-small phones (under 380px) */
+  @media (max-width: 380px) {
+    .graph-wrap { height: 240px; }
+    .speedup-big { font-size: 54px; }
+    .speedup-big .x { font-size: 34px; }
+    h1.hero { font-size: 23px; }
+  }
+
+  /* Print: keep it readable on paper if anyone prints it */
+  @media print {
+    body { background: white; color: black; }
+    .controls, footer { display: none; }
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="logo"><span>PR</span></div>
+      <div class="brand-text">
+        <div class="title">PageRank · Structured Parallelism</div>
+        <div class="tag">DATA PARALLELISM  ·  TASK PARALLELISM  ·  <b>visualizer</b></div>
+      </div>
+    </div>
+
+    <h1 class="hero">One worker, then four — <em>watch the speedup happen.</em></h1>
+    <p class="lede">
+      Both views run the <b>exact same PageRank algorithm</b> on the exact same 15-node web graph.
+      The left lane uses <b>one worker</b> walking every node, one at a time. The right lane splits
+      the work across <b>four threads</b> running in parallel. The timers, the iteration count, and
+      the live PageRank scores are all computed from the real algorithm — only the animation is sped up.
+      This is a visual illustration of the idea; the measured benchmarks are in the project README.
+    </p>
+  </header>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="ctrl-card" style="grid-column: span 2;">
+      <button id="playBtn" class="btn btn-play">▶ Play</button>
+      <button id="stepBtn" class="btn btn-ghost compact">Step iter</button>
+      <button id="resetBtn" class="btn btn-ghost compact">Reset</button>
+    </div>
+    <div class="ctrl-card slider-wrap">
+      <label>Speed</label>
+      <input type="range" id="speedSlider" min="50" max="600" step="25" value="220">
+      <span id="speedVal" class="iter-display" style="font-size:11px;width:52px;text-align:right">220ms</span>
+    </div>
+    <div class="ctrl-card iter-display">
+      Iteration <b id="iterNum">0</b> / 20
+    </div>
+    <div class="ctrl-card">
+      <span class="pill" id="statusPill"><span class="dot"></span><span id="statusText">Idle</span></span>
+    </div>
+  </div>
+
+  <main>
+    <!-- Side-by-side comparison -->
+    <div class="lanes">
+
+      <!-- ============== Sequential lane ============== -->
+      <section class="lane seq">
+        <div class="lane-head">
+          <div class="lane-title">
+            <span>Sequential</span>
+            <span class="pill seq"><span class="dot"></span>1 WORKER</span>
+          </div>
+          <div class="timer" id="seqTimer" style="color:var(--rose-soft)">0.00<span class="unit">s</span></div>
+        </div>
+
+        <div class="graph-wrap">
+          <svg class="graph" id="seqGraph" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+
+        <div class="workers" id="seqWorkers"></div>
+
+        <div class="progress-block">
+          <div class="progress-label">
+            <span>Iteration <b id="seqIterText">0</b>/20</span>
+            <span><b id="seqNodesDone">0</b>/15 nodes</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="seqBar"></div></div>
+        </div>
+      </section>
+
+      <!-- ============== Parallel lane ============== -->
+      <section class="lane par">
+        <div class="lane-head">
+          <div class="lane-title">
+            <span>Parallel</span>
+            <span class="pill par"><span class="dot"></span>4 WORKERS</span>
+          </div>
+          <div class="timer" id="parTimer" style="color:var(--gold-soft)">0.00<span class="unit">s</span></div>
+        </div>
+
+        <div class="graph-wrap">
+          <svg class="graph" id="parGraph" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+
+        <div class="workers" id="parWorkers"></div>
+
+        <div class="progress-block">
+          <div class="progress-label">
+            <span>Iteration <b id="parIterText">0</b>/20</span>
+            <span><b id="parNodesDone">0</b>/15 nodes (parallel)</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="parBar"></div></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Speedup + Bar chart -->
+    <div class="results">
+      <div class="speedup-card">
+        <div class="speedup-label">Live Speedup</div>
+        <div class="speedup-big"><span id="speedupVal">—</span><span class="x">×</span></div>
+        <div class="speedup-sub">
+          <b id="speedupVerdict">Press play to start the race.</b>
+          When both lanes finish, you'll see how many times faster four parallel workers were.
+        </div>
+        <div class="speedup-vs">
+          <div class="vs-cell seq">
+            <div class="vsLabel">Sequential</div>
+            <div class="vsValue"><span id="vsSeq">—</span> s</div>
+          </div>
+          <div class="vs-cell par">
+            <div class="vsLabel">Parallel</div>
+            <div class="vsValue"><span id="vsPar">—</span> s</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bars-card">
+        <h3>Live PageRank Scores</h3>
+        <div class="sub">Top 5 pages, updated every iteration. Both lanes converge to the same values.</div>
+        <div class="bars" id="bars"></div>
+      </div>
+    </div>
+
+    <!-- Explainer cards -->
+    <div class="explainer-strip">
+      <div class="ex-card rose">
+        <h4>Sequential</h4>
+        <p>One worker visits every node, in order. Each iteration touches all 15 — wait for the previous one before starting the next. <b>O(n) per iter</b>.</p>
+      </div>
+      <div class="ex-card">
+        <h4>Data parallelism</h4>
+        <p>Nodes are split into <b>4 chunks</b>. Each chunk goes to its own thread. Threads run the same code (<code>(1-d)/n + d·A[chunk]@ranks</code>) on different rows, then sync.</p>
+      </div>
+      <div class="ex-card deep">
+        <h4>The fix</h4>
+        <p>Pin BLAS to <code>1 thread</code>, and create the <code>ThreadPoolExecutor</code> <b>once</b> outside the iteration loop. Without these two changes, NumPy's own threads and ours competed for the same cores and the parallel version ran <b>slower</b> than sequential.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Parallel Programming Final Project  ·  PageRank visualizer
+  </footer>
+
+<script>
+  /* ============================================================
+     DATA: web graph + node positions
+     ============================================================ */
+  const WEB_GRAPH = {
+    'Home':        ['Products','Search','About','Blog'],
+    'Products':    ['Product1','Product2','Product3','Cart'],
+    'Product1':    ['Cart','Reviews','Related'],
+    'Product2':    ['Cart','Reviews','Related'],
+    'Product3':    ['Cart','Reviews','Related'],
+    'Cart':        ['Checkout','Products'],
+    'Checkout':    ['Payment','Home'],
+    'Payment':     ['Confirmation'],
+    'Confirmation':['Home','Products'],
+    'Search':      ['Products','Product1','Product2','Product3'],
+    'Reviews':     ['Product1','Product2','Product3'],
+    'Related':     ['Product1','Product2','Product3'],
+    'About':       ['Home','Contact'],
+    'Contact':     ['Home'],
+    'Blog':        ['Home','Products'],
+  };
+  const NODES = Object.keys(WEB_GRAPH);
+  const N = NODES.length;
+  const IDX = Object.fromEntries(NODES.map((n,i)=>[n,i]));
+
+  const POS = {
+    'Home':        [100, 190],
+    'About':       [55,  85],
+    'Blog':        [55,  295],
+    'Contact':     [55,  35],
+    'Search':      [220, 60],
+    'Products':    [310, 190],
+    'Cart':        [430, 250],
+    'Product1':    [490, 60],
+    'Product2':    [560, 130],
+    'Product3':    [490, 320],
+    'Reviews':     [630, 240],
+    'Related':     [710, 90],
+    'Checkout':    [610, 330],
+    'Payment':     [730, 320],
+    'Confirmation':[750, 200],
+  };
+
+  // Build adjacency
+  const adj = Array.from({length: N}, () => new Array(N).fill(0));
+  const outDeg = new Array(N).fill(0);
+  for (const [src, dests] of Object.entries(WEB_GRAPH)) {
+    outDeg[IDX[src]] = dests.length;
+    for (const d of dests) adj[IDX[d]][IDX[src]] = 1.0;
+  }
+  for (let s = 0; s < N; s++) {
+    if (outDeg[s] > 0) for (let d = 0; d < N; d++) adj[d][s] /= outDeg[s];
+  }
+
+  /* Precompute ranks per iteration */
+  const N_ITER = 20;
+  const DAMPING = 0.85;
+  const ranksByIter = [];
+  {
+    let r = new Array(N).fill(1 / N);
+    ranksByIter.push(r.slice());
+    for (let t = 1; t <= N_ITER; t++) {
+      const nr = new Array(N).fill(0);
+      for (let i = 0; i < N; i++) {
+        let s = 0;
+        for (let j = 0; j < N; j++) s += adj[i][j] * r[j];
+        nr[i] = (1 - DAMPING) / N + DAMPING * s;
+      }
+      ranksByIter.push(nr.slice());
+      r = nr;
+    }
+  }
+
+  /* Worker chunks */
+  const N_WORKERS = 4;
+  function makeChunks(n, k) {
+    const chunks = [];
+    const base = Math.floor(n / k), rem = n % k;
+    let start = 0;
+    for (let w = 0; w < k; w++) {
+      const len = base + (w < rem ? 1 : 0);
+      chunks.push(Array.from({length: len}, (_, i) => start + i));
+      start += len;
+    }
+    return chunks;
+  }
+  const CHUNKS = makeChunks(N, N_WORKERS);
+
+  /* ============================================================
+     SVG rendering
+     ============================================================ */
+  function drawEdges(svg) {
+    for (const [src, dests] of Object.entries(WEB_GRAPH)) {
+      for (const dst of dests) {
+        const [x1,y1] = POS[src], [x2,y2] = POS[dst];
+        const dx = x2 - x1, dy = y2 - y1;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const nx = -dy / dist, ny = dx / dist;
+        const rev = WEB_GRAPH[dst] && WEB_GRAPH[dst].includes(src);
+        const curve = rev ? 18 : 8;
+        const mx = (x1 + x2) / 2 + nx * curve;
+        const my = (y1 + y2) / 2 + ny * curve;
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("class", "edge");
+        path.setAttribute("d", `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`);
+        svg.appendChild(path);
+      }
+    }
+  }
+  function drawNodes(svg, prefix) {
+    NODES.forEach((name, i) => {
+      const [x, y] = POS[name];
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.setAttribute("class", "node");
+      g.setAttribute("id", `${prefix}-node-${i}`);
+      g.setAttribute("transform", `translate(${x} ${y})`);
+
+      const glow = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      glow.setAttribute("class", "node-glow");
+      glow.setAttribute("r", "20");
+      g.appendChild(glow);
+
+      const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      c.setAttribute("class", "node-circle");
+      c.setAttribute("r", "12");
+      g.appendChild(c);
+
+      const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      t.setAttribute("class", "node-label");
+      t.setAttribute("y", "-18");
+      t.textContent = name;
+      g.appendChild(t);
+
+      const rk = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      rk.setAttribute("class", "node-rank");
+      rk.setAttribute("y", "3");
+      rk.textContent = "—";
+      g.appendChild(rk);
+
+      svg.appendChild(g);
+    });
+  }
+  const seqSvg = document.getElementById("seqGraph");
+  const parSvg = document.getElementById("parGraph");
+  drawEdges(seqSvg); drawNodes(seqSvg, "seq");
+  drawEdges(parSvg); drawNodes(parSvg, "par");
+
+  /* Worker chips */
+  function setupWorkers() {
+    const seqW = document.getElementById("seqWorkers");
+    seqW.innerHTML = `<div class="worker w0">
+      <div class="name"><span class="swatch"></span>Worker</div>
+      <div class="doing" id="seqW0-doing">idle</div>
+      <div class="count" id="seqW0-count">0 / 15</div>
+    </div>`;
+    const parW = document.getElementById("parWorkers");
+    parW.innerHTML = CHUNKS.map((chunk, w) => `
+      <div class="worker w${w}">
+        <div class="name"><span class="swatch"></span>Worker-${w+1}</div>
+        <div class="doing" id="parW${w}-doing">idle</div>
+        <div class="count" id="parW${w}-count">0 / ${chunk.length}</div>
+      </div>`).join("");
+  }
+  setupWorkers();
+
+  /* Bars chart */
+  function renderBars(ranks) {
+    const order = ranks.map((v, i) => ({v, i}))
+                       .sort((a, b) => b.v - a.v)
+                       .slice(0, 5);
+    const max = Math.max(...order.map(o => o.v));
+    const html = order.map((o, idx) => {
+      const pct = (o.v / max * 100).toFixed(1);
+      return `<div class="bar-row">
+        <div class="label"><span class="rank-num">#${idx+1}</span>${NODES[o.i]}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+        <div class="val">${o.v.toFixed(4)}</div>
+      </div>`;
+    }).join("");
+    document.getElementById("bars").innerHTML = html;
+  }
+  renderBars(ranksByIter[0]);
+
+  /* SVG state */
+  function clearActive(prefix) {
+    for (let i = 0; i < N; i++) {
+      const el = document.getElementById(`${prefix}-node-${i}`);
+      el.classList.remove("active", "active-0", "active-1", "active-2", "active-3");
+    }
+  }
+  function setActive(prefix, i, workerIdx) {
+    const el = document.getElementById(`${prefix}-node-${i}`);
+    if (prefix === "seq") el.classList.add("active");
+    else el.classList.add(`active-${workerIdx}`);
+  }
+  function updateNodeSizes(prefix, ranks) {
+    const max = Math.max(...ranks);
+    for (let i = 0; i < N; i++) {
+      const g = document.getElementById(`${prefix}-node-${i}`);
+      const c = g.querySelector(".node-circle");
+      const r = 8 + (ranks[i] / max) * 14;
+      c.setAttribute("r", r);
+      g.querySelector(".node-rank").textContent = ranks[i].toFixed(3);
+    }
+  }
+  updateNodeSizes("seq", ranksByIter[0]);
+  updateNodeSizes("par", ranksByIter[0]);
+
+  /* Simulation state */
+  const state = {
+    playing: false, iter: 0,
+    seqSub: 0, parSub: 0,
+    seqIter: 0, parIter: 0,
+    seqTime: 0, parTime: 0,
+    seqDone: false, parDone: false,
+    tickMs: 220, msPerNode: 4.5,
+  };
+  let raf = null, lastTick = 0;
+
+  function tickOnce() {
+    const maxChunkLen = Math.max(...CHUNKS.map(c => c.length));
+
+    if (!state.seqDone) {
+      clearActive("seq");
+      if (state.seqSub < N) {
+        const nodeI = state.seqSub;
+        setActive("seq", nodeI, 0);
+        state.seqTime += state.msPerNode;
+        document.getElementById("seqW0-doing").textContent = NODES[nodeI];
+        document.getElementById("seqW0-count").textContent = `${state.seqSub+1} / 15`;
+        document.querySelector(".lane.seq .worker.w0").classList.add("busy");
+        state.seqSub++;
+      } else {
+        state.seqSub = 0;
+      }
+    }
+
+    if (!state.parDone) {
+      clearActive("par");
+      let anyParBusy = false;
+      for (let w = 0; w < N_WORKERS; w++) {
+        const chunk = CHUNKS[w];
+        const busyEl = document.querySelector(`.lane.par .worker.w${w}`);
+        if (state.parSub < chunk.length) {
+          const nodeI = chunk[state.parSub];
+          setActive("par", nodeI, w);
+          document.getElementById(`parW${w}-doing`).textContent = NODES[nodeI];
+          busyEl.classList.add("busy");
+          anyParBusy = true;
+        } else {
+          busyEl.classList.remove("busy");
+          document.getElementById(`parW${w}-doing`).textContent = "—";
+        }
+      }
+      if (anyParBusy) state.parTime += state.msPerNode;
+      for (let w = 0; w < N_WORKERS; w++) {
+        const chunk = CHUNKS[w];
+        const done = Math.min(state.parSub + 1, chunk.length);
+        document.getElementById(`parW${w}-count`).textContent = `${done} / ${chunk.length}`;
+      }
+      state.parSub++;
+      if (state.parSub >= maxChunkLen) state.parSub = 0;
+    }
+
+    if (state.seqSub === 0 && !state.seqDone) {
+      state.seqIter = (state.seqIter || 0) + 1;
+      document.getElementById("seqIterText").textContent = state.seqIter;
+      updateNodeSizes("seq", ranksByIter[state.seqIter]);
+      if (state.seqIter >= N_ITER) {
+        state.seqDone = true;
+        clearActive("seq");
+        document.getElementById("seqW0-doing").textContent = "done";
+        document.querySelector(".lane.seq .worker.w0").classList.remove("busy");
+      }
+    }
+    if (state.parSub === 0 && !state.parDone) {
+      state.parIter = (state.parIter || 0) + 1;
+      document.getElementById("parIterText").textContent = state.parIter;
+      updateNodeSizes("par", ranksByIter[state.parIter]);
+      renderBars(ranksByIter[state.parIter]);
+      if (state.parIter >= N_ITER) {
+        state.parDone = true;
+        clearActive("par");
+        for (let w = 0; w < N_WORKERS; w++) {
+          document.getElementById(`parW${w}-doing`).textContent = "done";
+          document.querySelector(`.lane.par .worker.w${w}`).classList.remove("busy");
+        }
+      }
+    }
+
+    const seqIter = state.seqIter || 0;
+    const seqNodesDone = seqIter * 15 + state.seqSub;
+    const seqTotal = N_ITER * 15;
+    document.getElementById("seqBar").style.width = `${Math.min(100, seqNodesDone / seqTotal * 100)}%`;
+    document.getElementById("seqNodesDone").textContent = state.seqSub;
+
+    const parIter = state.parIter || 0;
+    const parNodesDone = parIter * 15 + Math.min(state.parSub * N_WORKERS, 15);
+    document.getElementById("parBar").style.width = `${Math.min(100, parNodesDone / seqTotal * 100)}%`;
+    document.getElementById("parNodesDone").textContent = Math.min(state.parSub * N_WORKERS, 15);
+
+    document.getElementById("iterNum").textContent = Math.max(seqIter, parIter);
+
+    document.getElementById("seqTimer").innerHTML =
+      `${(state.seqTime / 1000).toFixed(2)}<span class="unit">s</span>`;
+    document.getElementById("parTimer").innerHTML =
+      `${(state.parTime / 1000).toFixed(2)}<span class="unit">s</span>`;
+
+    if (state.parDone && state.seqDone) {
+      const sp = state.seqTime / Math.max(0.001, state.parTime);
+      document.getElementById("speedupVal").textContent = sp.toFixed(2);
+      document.getElementById("vsSeq").textContent = (state.seqTime / 1000).toFixed(3);
+      document.getElementById("vsPar").textContent = (state.parTime / 1000).toFixed(3);
+      document.getElementById("speedupVerdict").innerHTML =
+        `<b>Done.</b> Four workers finished <b>${sp.toFixed(2)}× faster</b> than one.`;
+      setStatus("Done", false);
+      stop();
+    } else if (state.parDone && !state.seqDone) {
+      document.getElementById("speedupVerdict").innerHTML =
+        `Parallel is <b>done</b>. Waiting for sequential to catch up…`;
+    }
+  }
+
+  function setStatus(text, live) {
+    document.getElementById("statusText").textContent = text;
+    const pill = document.getElementById("statusPill");
+    pill.className = "pill" + (live ? " live" : "");
+    if (text === "Running") pill.classList.add("par");
+    else if (text === "Done") pill.classList.add("par");
+    else pill.classList.add("seq");
+  }
+
+  function step() { tickOnce(); }
+  function play() {
+    if (state.seqDone && state.parDone) reset();
+    state.playing = true;
+    setStatus("Running", true);
+    document.getElementById("playBtn").textContent = "⏸ Pause";
+    function loop(ts) {
+      if (!state.playing) return;
+      if (!lastTick) lastTick = ts;
+      if (ts - lastTick >= state.tickMs) {
+        lastTick = ts;
+        tickOnce();
+      }
+      raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  }
+  function stop() {
+    state.playing = false;
+    cancelAnimationFrame(raf);
+    raf = null; lastTick = 0;
+    document.getElementById("playBtn").textContent = "▶ Play";
+  }
+  function reset() {
+    stop();
+    state.iter = 0; state.seqSub = 0; state.parSub = 0;
+    state.seqIter = 0; state.parIter = 0;
+    state.seqTime = 0; state.parTime = 0;
+    state.seqDone = false; state.parDone = false;
+    clearActive("seq"); clearActive("par");
+    updateNodeSizes("seq", ranksByIter[0]);
+    updateNodeSizes("par", ranksByIter[0]);
+    renderBars(ranksByIter[0]);
+    document.getElementById("seqIterText").textContent = 0;
+    document.getElementById("parIterText").textContent = 0;
+    document.getElementById("iterNum").textContent = 0;
+    document.getElementById("seqTimer").innerHTML = '0.00<span class="unit">s</span>';
+    document.getElementById("parTimer").innerHTML = '0.00<span class="unit">s</span>';
+    document.getElementById("seqBar").style.width = "0%";
+    document.getElementById("parBar").style.width = "0%";
+    document.getElementById("speedupVal").textContent = "—";
+    document.getElementById("vsSeq").textContent = "—";
+    document.getElementById("vsPar").textContent = "—";
+    document.getElementById("speedupVerdict").innerHTML = "Press play to start the race.";
+    setupWorkers();
+    setStatus("Idle", false);
+  }
+
+  document.getElementById("playBtn").addEventListener("click", () => {
+    if (state.playing) stop(); else play();
+  });
+  document.getElementById("stepBtn").addEventListener("click", () => {
+    if (state.playing) stop();
+    step();
+  });
+  document.getElementById("resetBtn").addEventListener("click", reset);
+  document.getElementById("speedSlider").addEventListener("input", (e) => {
+    state.tickMs = Number(e.target.value);
+    document.getElementById("speedVal").textContent = `${e.target.value}ms`;
+  });
+
+  setStatus("Idle", false);
+</script>
+</body>
+</html>

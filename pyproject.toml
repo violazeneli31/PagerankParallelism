@@ -1,0 +1,10 @@
+[project]
+name = "pagerank-parallelism"
+version = "1.0.0"
+description = "PageRank with data parallelism and task parallelism in Python"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
