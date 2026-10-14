@@ -1,82 +1,63 @@
 # PageRank with Parallel Programming
 
-This project computes **PageRank**, the algorithm Google first used to rank web pages, and speeds it up by running parts of it at the same time on several CPU cores. It compares a normal one-thread version with two parallel versions and measures how much faster they really are.
+PageRank (the algorithm Google used to rank web pages) written in Python, made faster by running work on several CPU cores at the same time.
 
 Final project for **CEN 330 – Parallel Programming**, Epoka University (May 2026).
 
 **Live demo:** https://violazeneli31.github.io/PagerankParallelism/
 
-## What is PageRank?
+## How PageRank works
 
-A page is important if important pages link to it.
+A page is important if important pages link to it. Every page starts with the same score, then keeps sharing its score with the pages it links to until the scores stop changing.
 
-Every page starts with the same score. Then, round after round, each page shares its score with the pages it links to. After enough rounds the scores stop changing, and those are the final ranks.
+- Damping factor `0.85`: a visitor clicks a link 85% of the time and jumps to a random page 15% of the time.
 
-```
-PR(page) = (1 − d) / N  +  d × sum of ( PR(q) / links(q) )   for every page q that links to the page
-```
+## Three versions
 
-- `N` is the number of pages.
-- `d = 0.85`: a visitor clicks a link 85% of the time and jumps to a random page 15% of the time.
-
-## The two parallel versions
-
-**Data parallelism: same job, data split up.**
-The pages are divided into groups, one group per thread. Every thread does the same calculation on its own group, and the threads wait for each other before starting the next round.
-
-**Task parallelism: different jobs at the same time.**
-Three separate jobs on the same graph run at once:
-- PageRank
-- HITS, another ranking method that scores pages as "hubs" and "authorities"
-- graph statistics, such as the number of links and the most-linked page
+| Version | How it works |
+|---|---|
+| **Sequential** | One thread does everything. This is the baseline. |
+| **Data parallelism** | The pages are split into groups, one per thread. Every thread does the same calculation on its own group. |
+| **Task parallelism** | Three different jobs run at the same time: PageRank, HITS (another ranking method), and graph statistics. |
 
 ## Results
 
-Measured on a 4-core Intel MacBook Air. Each number is the median of 7 runs.
+Measured on a 4-core Intel MacBook Air. Each time is the median of 7 runs.
 
 | Test | Result |
 |---|---|
-| All versions give the same scores as the NetworkX library | ✅ |
+| Same scores as the NetworkX library | ✅ all versions |
 | Data parallelism, 4,000 pages, 4 threads | **1.43× faster** |
-| Task parallelism, 3 jobs at once | **1.51× faster** |
-| Data parallelism, small 15-page site, 4 threads | **80× slower** |
+| Task parallelism, 3 jobs | **1.51× faster** |
+| Data parallelism, 15 pages, 4 threads | **80× slower** |
 
-**What we learned**
-- **Small problems don't benefit.** On 15 pages, starting and syncing threads takes much longer than the calculation itself. The speedup only shows up from about 2,000 pages.
-- **Memory is the limit.** Each round reads the whole page-link table from memory. The cores end up waiting for memory, so the speedup stops at about 1.4×, and more threads don't help.
-- **The comparison is fair.** The one-thread version is also optimised (it uses NumPy instead of slow Python loops), so the speedup comes from parallelism only.
+- **Small graphs get slower.** Managing threads costs more than the actual work. The speedup starts at about 2,000 pages.
+- **Memory limits the speedup.** The cores spend their time waiting for data from memory, so the speedup stops at about 1.4×.
+- **The test is fair.** The sequential version also uses fast NumPy code, so the speedup comes only from parallelism.
 
 ## Project structure
 
-| Folder / file | What's inside | How to use it |
+| Folder | What's inside | How to use it |
 |---|---|---|
-| `pagerank/` | The main code. `core.py` has the one-thread and data-parallel versions, `tasks.py` has the task-parallel version, and `graphs.py` has the test websites. | Import it in Python (example below). |
-| `notebooks/` | `pagerank_parallelism.ipynb`, a step-by-step walkthrough with explanations and results. | Open it in Jupyter or VS Code and run the cells from top to bottom. |
-| `docs/` | `index.html`, an animated demo that races 1 worker against 4 workers. | Open https://violazeneli31.github.io/PagerankParallelism/ or double-click the file. Nothing to install. |
-| `benchmarks/` | `run_benchmarks.py`, which measures the speed of every version. | `python benchmarks/run_benchmarks.py` (takes about 1 minute) |
-| `results/` | `benchmarks.json`, the saved measurements. | Created by the benchmark script. Read by the notebook and the charts script. |
-| `scripts/` | `make_figures.py`, which draws the charts. | `python scripts/make_figures.py` |
-| `images/` | The charts used in the notebook. | Created by the charts script. |
-| `tests/` | Checks that every version gives correct and identical results. | `pytest` |
-| `report/` | The written project report (PDF and Word). | Open the PDF. It shows the numbers from the original submission. |
-| `requirements.txt` | The Python libraries the project needs. | `pip install -r requirements.txt` |
+| `pagerank/` | The main code | Import it in Python (see below) |
+| `notebooks/` | A step-by-step walkthrough | Open in Jupyter or VS Code and run all cells |
+| `docs/` | The animated demo (`index.html`) | Open the live demo link, or double-click the file |
+| `benchmarks/` | The speed test | `python benchmarks/run_benchmarks.py` |
+| `results/` | The saved speed results | Created by the speed test |
+| `scripts/` | The chart maker | `python scripts/make_figures.py` |
+| `images/` | Charts used in the notebook | Created by the chart maker |
+| `tests/` | Correctness checks | `pytest` |
+| `report/` | The project report (PDF and Word) | Open the PDF |
 
-## How to run it
+## How to run
 
-1. Install Python 3.10 or newer.
-2. Open a terminal in the project folder and install the libraries:
-   ```
-   pip install -r requirements.txt
-   ```
-3. Run whichever part you want:
-   ```
-   pytest                                   # check everything works
-   python benchmarks/run_benchmarks.py      # measure the speed on your computer
-   python scripts/make_figures.py           # redraw the charts
-   jupyter notebook notebooks/pagerank_parallelism.ipynb
-   ```
+```
+pip install -r requirements.txt
+pytest
+python benchmarks/run_benchmarks.py
+```
 
-Using the code in your own Python file:
+Use it in your own code:
 
 ```python
 from pagerank import ECOMMERCE_SITE, build_transition_matrix, pagerank_data_parallel
