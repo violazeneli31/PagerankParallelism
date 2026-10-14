@@ -4,6 +4,8 @@ This project computes **PageRank**, the algorithm Google first used to rank web 
 
 Final project for **CEN 330 – Parallel Programming**, Epoka University (May 2026).
 
+**Live demo:** https://violazeneli31.github.io/PagerankParallelism/
+
 ## What is PageRank?
 
 A page is important if important pages link to it.
@@ -50,7 +52,7 @@ Measured on a 4-core Intel MacBook Air. Each number is the median of 7 runs.
 |---|---|---|
 | `pagerank/` | The main code. `core.py` has the one-thread and data-parallel versions, `tasks.py` has the task-parallel version, and `graphs.py` has the test websites. | Import it in Python (example below). |
 | `notebooks/` | `pagerank_parallelism.ipynb`, a step-by-step walkthrough with explanations and results. | Open it in Jupyter or VS Code and run the cells from top to bottom. |
-| `docs/` | `index.html`, an animated demo that races 1 worker against 4 workers. | Double-click it to open in your browser. Nothing to install. |
+| `docs/` | `index.html`, an animated demo that races 1 worker against 4 workers. | Open https://violazeneli31.github.io/PagerankParallelism/ or double-click the file. Nothing to install. |
 | `benchmarks/` | `run_benchmarks.py`, which measures the speed of every version. | `python benchmarks/run_benchmarks.py` (takes about 1 minute) |
 | `results/` | `benchmarks.json`, the saved measurements. | Created by the benchmark script. Read by the notebook and the charts script. |
 | `scripts/` | `make_figures.py`, which draws the charts. | `python scripts/make_figures.py` |
