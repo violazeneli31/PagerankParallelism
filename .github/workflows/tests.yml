@@ -8,6 +8,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.12"]
     steps:
@@ -15,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install numpy networkx pytest
+      - run: pip install numpy scipy networkx pytest
       - run: pytest -q
       - name: Quick benchmark smoke test
         run: python benchmarks/run_benchmarks.py --quick
